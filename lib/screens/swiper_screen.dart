@@ -204,6 +204,7 @@ class _SwiperScreenState extends State<SwiperScreen> {
                   cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
                     final asset = _assets[index];
                     return MediaCard(
+                      key: ValueKey(asset.id),
                       asset: asset,
                       isActive: index == _currentIndex,
                       horizontalOffsetPercentage: percentThresholdX,
@@ -279,7 +280,7 @@ class _MediaCardState extends State<MediaCard> {
 
   @override
   void dispose() {
-    _disposeVideo();
+    _disposeVideo(isDisposing: true);
     super.dispose();
   }
 
@@ -300,11 +301,11 @@ class _MediaCardState extends State<MediaCard> {
     });
   }
 
-  void _disposeVideo() {
+  void _disposeVideo({bool isDisposing = false}) {
     if (_videoController == null) return;
     _videoController?.dispose();
     _videoController = null;
-    if (mounted) {
+    if (!isDisposing && mounted) {
       setState(() {
         _isVideoInitialized = false;
       });

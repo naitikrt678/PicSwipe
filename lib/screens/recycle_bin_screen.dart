@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import '../state/app_state.dart';
+import 'preview_screen.dart';
 
 class RecycleBinScreen extends StatefulWidget {
   const RecycleBinScreen({super.key});
@@ -181,6 +182,13 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                       onTap: () {
                         if (_isSelectionMode) {
                           _toggleSelection(asset.id);
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PreviewScreen(asset: asset),
+                            ),
+                          );
                         }
                       },
                       child: Stack(
