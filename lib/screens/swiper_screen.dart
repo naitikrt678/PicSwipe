@@ -63,8 +63,11 @@ class _SwiperScreenState extends State<SwiperScreen> {
       size: _perPage,
     );
 
+    final Set<String> binIds = AppState().recycleBin.map((e) => e.id).toSet();
+    assets.removeWhere((asset) => binIds.contains(asset.id));
+
     if (_sortMode == SortMode.random) {
-      assets.shuffle();
+      assets.shuffle(Random.secure());
     }
 
     if (assets.isEmpty) {
@@ -155,63 +158,74 @@ class _SwiperScreenState extends State<SwiperScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(widget.album.name),
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.undo),
-          onPressed: () {
-            _swiperController.undo();
-          },
-        ),
-        actions: [
-          PopupMenuButton<SortMode>(
-            initialValue: _sortMode,
-            onSelected: _onSortModeChanged,
-            icon: const Icon(Icons.sort),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: SortMode.dateDescending,
-                child: Text('Newest First'),
-              ),
-              const PopupMenuItem(
-                value: SortMode.dateAscending,
-                child: Text('Oldest First'),
-              ),
-              const PopupMenuItem(
-                value: SortMode.random,
-                child: Text('Random Shuffle'),
+    return AnimatedBuilder(
+      animation: AppState(),
+      builder: (context, child) {
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text(widget.album.name),
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            leading: IconButton(
+              icon: const Icon(Icons.undo),
+              onPressed: () {
+                _swiperController.undo();
+              },
+            ),
+            actions: [
+              PopupMenuButton<SortMode>(
+                initialValue: _sortMode,
+                onSelected: _onSortModeChanged,
+                icon: const Icon(Icons.sort),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: SortMode.dateDescending,
+                    child: Text('Newest First'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortMode.dateAscending,
+                    child: Text('Oldest First'),
+                  ),
+                  const PopupMenuItem(
+                    value: SortMode.random,
+                    child: Text('Random Shuffle'),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : _assets.isEmpty
-              ? const Center(child: Text('No media found.', style: TextStyle(color: Colors.white)))
-              : CardSwiper(
-                  controller: _swiperController,
-                  cardsCount: _assets.length,
-                  onSwipe: _onSwipe,
-                  onUndo: _onUndo,
-                  maxAngle: 30,
-                  numberOfCardsDisplayed: 3,
-                  backCardOffset: const Offset(0, 40),
-                  padding: const EdgeInsets.all(24.0),
-                  cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
-                    final asset = _assets[index];
-                    return MediaCard(
-                      key: ValueKey(asset.id),
-                      asset: asset,
-                      isActive: index == _currentIndex,
-                      horizontalOffsetPercentage: percentThresholdX,
-                      verticalOffsetPercentage: percentThresholdY,
-                    );
-                  },
-                ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _assets.isEmpty
+                  ? const Center(child: Text('End of Feed', style: TextStyle(fontSize: 18)))
+                  : CardSwiper(
+                      controller: _swiperController,
+                      cardsCount: _assets.length,
+                      onSwipe: _onSwipe,
+                      onUndo: _onUndo,
+                      maxAngle: 30,
+                      allowedSwipeDirection: AllowedSwipeDirection.only(
+                        left: true,
+                        right: true,
+                        up: true,
+                        down: AppState().enableDownSwipe,
+                      ),
+                      numberOfCardsDisplayed: 3,
+                      backCardOffset: const Offset(0, 40),
+                      padding: const EdgeInsets.all(24.0),
+                      cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
+                        final asset = _assets[index];
+                        return MediaCard(
+                          key: ValueKey(asset.id),
+                          asset: asset,
+                          isActive: index == _currentIndex,
+                          horizontalOffsetPercentage: percentThresholdX,
+                          verticalOffsetPercentage: percentThresholdY,
+                        );
+                      },
+                    ),
+        );
+      },
     );
   }
 }
@@ -237,7 +251,7 @@ class MediaCard extends StatefulWidget {
 class _MediaCardState extends State<MediaCard> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
-  bool _isMuted = true;
+  bool _isMuted = false;
   int _lastHapticDir = 0;
   final int _hapticThreshold = 40;
 

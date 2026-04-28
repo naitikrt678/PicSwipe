@@ -16,7 +16,7 @@ class PreviewScreen extends StatefulWidget {
 class _PreviewScreenState extends State<PreviewScreen> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
-  bool _isMuted = true;
+  bool _isMuted = false;
   bool _isPlaying = true;
 
   @override

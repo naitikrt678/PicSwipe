@@ -96,7 +96,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
         content: Text(
-          'Are you sure you want to permanently delete ${_appState.recycleBin.length} items from your device?',
+          'Are you sure you want to permanently delete ${_appState.recycleBin.length} items from your device?\n\nThis will free up ${_appState.totalBinSize} of space.',
         ),
         actions: [
           TextButton(
@@ -141,7 +141,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(_isSelectionMode ? '${_selectedIds.length} Selected' : 'Recycle Bin'),
+            title: Text(_isSelectionMode ? '${_selectedIds.length} Selected' : 'Recycle Bin (${_appState.totalBinSize})'),
             leading: _isSelectionMode
                 ? IconButton(
                     icon: const Icon(Icons.close),
