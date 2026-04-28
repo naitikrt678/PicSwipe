@@ -1,6 +1,6 @@
-# PhotoSwipe
+# PicSwipe
 
-PhotoSwipe is a mobile media management application built with Flutter. It utilizes a gesture-based interface to help users organize, favorite, and prune their local photo and video libraries.
+PicSwipe is a mobile media management application built with Flutter. It utilizes a gesture-based interface to help users organize, favorite, and prune their local photo and video libraries.
 
 ## Core Features
 
