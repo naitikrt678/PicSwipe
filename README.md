@@ -1,46 +1,37 @@
 # PicSwipe
 
-PicSwipe is a high-performance mobile media management application. It utilizes a highly responsive gesture-based card stack interface to help users seamlessly organize, favorite, and prune their local photo and video libraries.
+PicSwipe is a mobile media management application built with Flutter. It utilizes a gesture-based interface to help users organize, favorite, and prune their local photo and video libraries.
 
 ## Core Features
 
-### Fast & Reliable Media Loading
-The application securely accesses your device's local storage. It employs a sliding window pagination strategy, fetching media in strict batches to maintain rapid rendering and smooth swiping. To prevent memory issues, the primary feed generates low-resolution thumbnails dynamically rather than loading massive full-resolution images. Robust safety checks ensure empty folders display proper placeholders and prevent deleted assets from causing visual glitches.
+### Media Procurement and Performance
+The application accesses the device's local storage using the photo_manager package. It employs a sliding window pagination strategy, fetching media in batches of 50 assets to maintain performance. To prevent Out of Memory (OOM) errors, the main feed renders low-resolution thumbnails rather than full-resolution files.
 
 ### Swipe-to-Action Interface
-The primary interaction is handled through a liquid-smooth card stack interface:
-* **Swipe Right (Favorite)**: Moves the photo or video into the persistent Favorites menu for safekeeping.
-* **Swipe Up (Keep)**: Acknowledges the asset without modifying any lists or file systems.
-* **Swipe Left (Bin)**: Moves the asset into a local Recycle Bin state for impending deletion.
-* *Note: Downward swiping is disabled by default but can be enabled in the Settings for custom layouts.*
+The primary interaction is handled through a card stack interface:
+* Swipe Right: Marks the asset as a favorite at the system level.
+* Swipe Up: Marks the asset as reviewed/kept without modifying the file system.
+* Swipe Left: Moves the asset reference into a local recycle bin state.
 
-### Persistent State & Perfect Synchronization
-Both the **Recycle Bin** and **Favorites** lists are saved directly to your device. Because the app independently governs your favorite items, it bypasses unpredictable bugs found in standard operating systems. 
-* **Startup Check**: On launch, the app cross-references all saved media. If a file was manually deleted from your phone outside of PicSwipe, the app dynamically removes the dead link.
-* **Live Feed Sync**: When fetching new media chunks, PicSwipe explicitly filters out any items currently sitting in your Bin or Favorites. It is impossible for a previously swiped photo to "ghost" back into your feed.
+### Persistent Recycle Bin
+The recycle bin list is persisted using the shared_preferences package. This ensures that assets marked for deletion remain in the bin even after the application is closed. On startup, a hydration phase verifies that the files still exist on the device before displaying them in the bin.
 
-### Real-Time Storage Metrics
-When managing the Recycle Bin, the app continuously calculates the exact file size of every asset. It prominently displays the total amount of storage space (in MB or GB) that will be successfully reclaimed upon confirming a permanent deletion.
-
-### Context-Aware Previews
-Tapping any image or video opens a full-screen preview. The action toolbar dynamically adapts based on where you opened it from:
-* **Recycle Bin Previews**: Features "Restore" to move the item back to the main feed, and "Delete" for individual permanent removal.
-* **Favorites Previews**: Features "Share" to send the asset to friends, and "Gallery". 
-* **True External Gallery**: The "Open in Gallery" function commands your operating system to completely break out of PicSwipe and open the media inside your dedicated default app (like Google Photos or Samsung Gallery).
-
-### Multi-Select & Batch Processing
-Both the Recycle Bin and Favorites grid layouts support intuitive **Long-Press Selection**:
-* **Batch Restore / Unfavorite**: Rapidly remove multiple items from their respective menus.
-* **Batch Delete**: Triggers the native operating system confirmation dialog for permanent bulk file removal.
-* **Batch Share**: Passes multiple selected media files directly to the native share menu (e.g., Messages, AirDrop, WhatsApp).
+### Multi-Select and Batch Processing
+The Recycle Bin view supports a long-press selection mode. Users can select multiple items to perform batch actions:
+* Batch Restore: Removes items from the bin and returns them to the active feed.
+* Batch Delete: Triggers the native operating system confirmation dialog for permanent file removal.
 
 ### Undo Functionality
-The application maintains a history of your last 10 swipes. An undo mechanism is available to revert these actions, restoring the previously swiped card to the top of the stack and instantly reversing its addition to the Bin or Favorites.
+The application maintains a history of the last 10 swipes. An undo mechanism is available to revert these actions, restoring the previously swiped card to the top of the stack and reversing any state changes associated with that specific swipe.
 
-### Customization & Settings
-Users have full control over the app's logic and aesthetics:
-* **Sort Modes**: View media by Newest First, Oldest First, or True Random (which utilizes a secure randomizer for flawless shuffling).
-* **Global Theming**: Instantly swap between Light and Dark mode via the Settings panel without requiring an app restart.
+### Advanced Video Support
+Video assets autoplay when they reach the top of the card stack. The player includes a playback progress bar and a dedicated mute/unmute toggle. Videos are muted by default to ensure a non-disruptive user experience.
 
-## Privacy & Safety
-The application adheres strictly to modern scoped storage guidelines on Android and iOS. Permanent file deletions always require an explicit, un-bypassable native system confirmation prompt. PicSwipe is incapable of permanently deleting user data without your direct, final consent.
+### Feed Customization
+Users can modify the order of the media feed through three sorting modes:
+* Date Ascending: Displays the oldest media first.
+* Date Descending: Displays the newest media first.
+* Random: Shuffles the available assets for a non-chronological browsing experience.
+
+## Technical Precautions
+The application adheres to scoped storage requirements on Android 13+ and iOS. Permanent deletions always require user confirmation via the native system prompt, ensuring the application cannot delete files without explicit user consent.
