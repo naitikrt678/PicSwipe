@@ -8,37 +8,96 @@ import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
 
-class PreviewScreen extends StatefulWidget {
-  final AssetEntity asset;
-  final bool fromFavorites;
+enum PreviewSource { recycleBin, favorites }
 
-  const PreviewScreen({super.key, required this.asset, this.fromFavorites = false});
+class PreviewScreen extends StatefulWidget {
+  final List<AssetEntity> assetList;
+  final int initialIndex;
+  final PreviewSource source;
+
+  const PreviewScreen({
+    super.key,
+    required this.assetList,
+    required this.initialIndex,
+    required this.source,
+  });
 
   @override
   State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
 class _PreviewScreenState extends State<PreviewScreen> {
+  late PageController _pageController;
+  late int _currentIndex;
+  
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
   bool _isMuted = false;
   bool _isPlaying = true;
+  
+  String _currentFileSize = "";
 
   @override
   void initState() {
     super.initState();
-    if (widget.asset.type == AssetType.video) {
-      _initializeVideo();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+    _onPageChanged(_currentIndex);
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    _disposeVideo();
+    
+    final asset = widget.assetList[_currentIndex];
+    if (asset.type == AssetType.video) {
+      _initializeVideo(asset);
+    }
+    
+    if (widget.source == PreviewSource.recycleBin) {
+      _calculateFileSize(asset);
     }
   }
 
-  Future<void> _initializeVideo() async {
-    final file = await widget.asset.file;
-    if (file == null || !mounted) return;
+  Future<void> _calculateFileSize(AssetEntity asset) async {
+    setState(() => _currentFileSize = "Calculating...");
+    try {
+      final file = await asset.file;
+      if (file != null) {
+        final totalBytes = await file.length();
+        String size;
+        if (totalBytes < 1024) {
+          size = "$totalBytes B";
+        } else if (totalBytes < 1024 * 1024) {
+          size = "${(totalBytes / 1024).toStringAsFixed(2)} KB";
+        } else if (totalBytes < 1024 * 1024 * 1024) {
+          size = "${(totalBytes / (1024 * 1024)).toStringAsFixed(2)} MB";
+        } else {
+          size = "${(totalBytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB";
+        }
+        
+        if (mounted && widget.assetList[_currentIndex].id == asset.id) {
+          setState(() => _currentFileSize = size);
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _currentFileSize = "Unknown");
+    }
+  }
+
+  Future<void> _initializeVideo(AssetEntity asset) async {
+    final file = await asset.file;
+    if (file == null || !mounted || widget.assetList[_currentIndex].id != asset.id) return;
 
     _videoController = VideoPlayerController.file(file);
     await _videoController!.initialize();
-    if (!mounted) return;
+    if (!mounted || widget.assetList[_currentIndex].id != asset.id) {
+      _videoController?.dispose();
+      _videoController = null;
+      return;
+    }
 
     _videoController!.setVolume(_isMuted ? 0 : 1);
     _videoController!.setLooping(true);
@@ -46,12 +105,21 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
     setState(() {
       _isVideoInitialized = true;
+      _isPlaying = true;
     });
+  }
+
+  void _disposeVideo() {
+    _videoController?.dispose();
+    _videoController = null;
+    _isVideoInitialized = false;
+    _isPlaying = false;
   }
 
   @override
   void dispose() {
-    _videoController?.dispose();
+    _pageController.dispose();
+    _disposeVideo();
     super.dispose();
   }
 
@@ -73,14 +141,16 @@ class _PreviewScreenState extends State<PreviewScreen> {
     });
   }
 
+  AssetEntity get _currentAsset => widget.assetList[_currentIndex];
+
   Future<void> _restoreAsset() async {
-    await AppState().removeFromBin(widget.asset);
-    if (mounted) {
-      Navigator.pop(context);
-    }
+    final asset = _currentAsset;
+    await AppState().removeFromBin(asset);
+    _handleRemoval(asset);
   }
 
   Future<void> _deleteAsset() async {
+    final asset = _currentAsset;
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -102,12 +172,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
     if (confirm == true && mounted) {
       try {
-        final result = await PhotoManager.editor.deleteWithIds([widget.asset.id]);
+        final result = await PhotoManager.editor.deleteWithIds([asset.id]);
         if (result.isNotEmpty) {
-          await AppState().removeFromBin(widget.asset);
-          if (mounted) {
-            Navigator.pop(context);
-          }
+          await AppState().removeFromBin(asset);
+          _handleRemoval(asset);
         }
       } catch (e) {
         if (mounted) {
@@ -119,21 +187,54 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
   }
 
+  Future<void> _unfavoriteAsset() async {
+    final asset = _currentAsset;
+    try {
+      await AppState().removeFromFavorites(asset);
+      _handleRemoval(asset);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unfavorite: $e')),
+        );
+      }
+    }
+  }
+
+  void _handleRemoval(AssetEntity asset) {
+    if (!mounted) return;
+    
+    setState(() {
+      widget.assetList.removeWhere((e) => e.id == asset.id);
+      
+      if (widget.assetList.isEmpty) {
+        Navigator.pop(context);
+        return;
+      }
+      
+      if (_currentIndex >= widget.assetList.length) {
+        _currentIndex = widget.assetList.length - 1;
+      }
+      
+      _onPageChanged(_currentIndex);
+    });
+  }
+
   Future<void> _shareAsset() async {
-    final file = await widget.asset.file;
+    final file = await _currentAsset.file;
     if (file != null && mounted) {
       await Share.shareXFiles([XFile(file.path)]);
     }
   }
 
   Future<void> _openGallery() async {
-    final file = await widget.asset.file;
+    final asset = _currentAsset;
+    final file = await asset.file;
     if (file != null) {
       if (Platform.isAndroid) {
         try {
-          // Attempt to open via content URI using url_launcher to force external application
-          final String mediaType = widget.asset.type == AssetType.video ? 'video' : 'images';
-          final uri = Uri.parse('content://media/external/$mediaType/media/${widget.asset.id}');
+          final String mediaType = asset.type == AssetType.video ? 'video' : 'images';
+          final uri = Uri.parse('content://media/external/$mediaType/media/${asset.id}');
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
             return;
@@ -144,30 +245,17 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
   }
 
-  Future<void> _unfavoriteAsset() async {
-    try {
-      await AppState().removeFromFavorites(widget.asset);
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to unfavorite: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (widget.assetList.isEmpty) return const SizedBox.shrink();
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Preview'),
+        title: Text('${_currentIndex + 1} of ${widget.assetList.length}'),
         actions: [
-          if (widget.fromFavorites)
+          if (widget.source == PreviewSource.favorites)
             IconButton(
               icon: const Icon(Icons.favorite, color: Colors.red),
               onPressed: _unfavoriteAsset,
@@ -177,36 +265,61 @@ class _PreviewScreenState extends State<PreviewScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (widget.source == PreviewSource.recycleBin && _currentFileSize.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Text('Size: $_currentFileSize', style: const TextStyle(color: Colors.white70)),
+              ),
             Expanded(
-              child: Center(
-                child: widget.asset.type == AssetType.video
-                    ? (_isVideoInitialized && _videoController != null
-                        ? GestureDetector(
-                            onTap: _togglePlay,
-                            child: AspectRatio(
-                              aspectRatio: _videoController!.value.aspectRatio,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  VideoPlayer(_videoController!),
-                                  if (!_isPlaying)
-                                    const Icon(Icons.play_circle_filled, size: 80, color: Colors.white54),
-                                ],
-                              ),
-                            ),
-                          )
-                        : const CircularProgressIndicator(color: Colors.white))
-                    : AssetEntityImage(
-                        widget.asset,
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                onPageChanged: _onPageChanged,
+                itemCount: widget.assetList.length,
+                itemBuilder: (context, index) {
+                  final asset = widget.assetList[index];
+                  
+                  if (asset.type == AssetType.video && index == _currentIndex && _isVideoInitialized && _videoController != null) {
+                    return Center(
+                      child: GestureDetector(
+                        key: ValueKey(asset.id),
+                        onTap: _togglePlay,
+                        child: AspectRatio(
+                          aspectRatio: _videoController!.value.aspectRatio,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              VideoPlayer(_videoController!),
+                              if (!_isPlaying)
+                                const Icon(Icons.play_circle_filled, size: 80, color: Colors.white54),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  } else if (asset.type == AssetType.video) {
+                    return const Center(child: CircularProgressIndicator(color: Colors.white));
+                  } else {
+                    return InteractiveViewer(
+                      key: ValueKey(asset.id),
+                      panEnabled: true,
+                      scaleEnabled: true,
+                      minScale: 1.0,
+                      maxScale: 4.0,
+                      child: AssetEntityImage(
+                        asset,
                         isOriginal: true,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
                           return const Center(child: Icon(Icons.error, color: Colors.white));
                         },
                       ),
+                    );
+                  }
+                },
               ),
             ),
-            if (widget.asset.type == AssetType.video && _isVideoInitialized && _videoController != null)
+            if (_currentAsset.type == AssetType.video && _isVideoInitialized && _videoController != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Row(
@@ -236,7 +349,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             Container(
               color: Colors.grey[900],
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: widget.fromFavorites
+              child: widget.source == PreviewSource.favorites
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [

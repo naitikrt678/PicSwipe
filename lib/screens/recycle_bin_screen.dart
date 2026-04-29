@@ -186,7 +186,11 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => PreviewScreen(asset: asset),
+                              builder: (_) => PreviewScreen(
+                                assetList: List.from(_appState.recycleBin),
+                                initialIndex: index,
+                                source: PreviewSource.recycleBin,
+                              ),
                             ),
                           );
                         }

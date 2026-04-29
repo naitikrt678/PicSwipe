@@ -111,8 +111,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => PreviewScreen(
-                                asset: asset,
-                                fromFavorites: true,
+                                assetList: List.from(_appState.favorites),
+                                initialIndex: index,
+                                source: PreviewSource.favorites,
                               ),
                             ),
                           );
