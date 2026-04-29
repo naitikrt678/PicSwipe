@@ -37,9 +37,6 @@ Both the Recycle Bin and Favorites grid layouts support intuitive **Long-Press S
 ### Undo Functionality
 The application maintains a history of your last 10 swipes. An undo mechanism is available to revert these actions, restoring the previously swiped card to the top of the stack and instantly reversing its addition to the Bin or Favorites.
 
-### Advanced Video Engine
-Video assets natively autoplay when they reach the top of the stack. The viewer integrates a full seekbar, playback timeline, and dedicated mute/unmute toggles. To prevent audio leaks, videos are strictly muted by default during the swiping process.
-
 ### Customization & Settings
 Users have full control over the app's logic and aesthetics:
 * **Sort Modes**: View media by Newest First, Oldest First, or True Random (which utilizes a secure randomizer for flawless shuffling).
