@@ -5,11 +5,11 @@ import '../state/app_state.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppState().init();
-  runApp(const PhotoSwipeApp());
+  runApp(const PicSwipeApp());
 }
 
-class PhotoSwipeApp extends StatelessWidget {
-  const PhotoSwipeApp({super.key});
+class PicSwipeApp extends StatelessWidget {
+  const PicSwipeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class PhotoSwipeApp extends StatelessWidget {
       animation: AppState(),
       builder: (context, child) {
         return MaterialApp(
-          title: 'PhotoSwipe',
+          title: 'PicSwipe',
           theme: AppState().isDarkMode
               ? ThemeData(
                   brightness: Brightness.dark,

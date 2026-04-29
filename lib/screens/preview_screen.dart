@@ -1,13 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:photo_manager_image_provider/photo_manager_image_provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../state/app_state.dart';
 
 class PreviewScreen extends StatefulWidget {
   final AssetEntity asset;
+  final bool fromFavorites;
 
-  const PreviewScreen({super.key, required this.asset});
+  const PreviewScreen({super.key, required this.asset, this.fromFavorites = false});
 
   @override
   State<PreviewScreen> createState() => _PreviewScreenState();
@@ -114,6 +119,46 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
   }
 
+  Future<void> _shareAsset() async {
+    final file = await widget.asset.file;
+    if (file != null && mounted) {
+      await Share.shareXFiles([XFile(file.path)]);
+    }
+  }
+
+  Future<void> _openGallery() async {
+    final file = await widget.asset.file;
+    if (file != null) {
+      if (Platform.isAndroid) {
+        try {
+          // Attempt to open via content URI using url_launcher to force external application
+          final String mediaType = widget.asset.type == AssetType.video ? 'video' : 'images';
+          final uri = Uri.parse('content://media/external/$mediaType/media/${widget.asset.id}');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            return;
+          }
+        } catch (_) {}
+      }
+      await OpenFilex.open(file.path);
+    }
+  }
+
+  Future<void> _unfavoriteAsset() async {
+    try {
+      await AppState().removeFromFavorites(widget.asset);
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unfavorite: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,6 +166,13 @@ class _PreviewScreenState extends State<PreviewScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text('Preview'),
+        actions: [
+          if (widget.fromFavorites)
+            IconButton(
+              icon: const Icon(Icons.favorite, color: Colors.red),
+              onPressed: _unfavoriteAsset,
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -184,21 +236,37 @@ class _PreviewScreenState extends State<PreviewScreen> {
             Container(
               color: Colors.grey[900],
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  TextButton.icon(
-                    onPressed: _restoreAsset,
-                    icon: const Icon(Icons.restore, color: Colors.blue),
-                    label: const Text('Restore', style: TextStyle(color: Colors.blue, fontSize: 16)),
-                  ),
-                  TextButton.icon(
-                    onPressed: _deleteAsset,
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 16)),
-                  ),
-                ],
-              ),
+              child: widget.fromFavorites
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _shareAsset,
+                          icon: const Icon(Icons.share, color: Colors.blue),
+                          label: const Text('Share', style: TextStyle(color: Colors.blue, fontSize: 16)),
+                        ),
+                        TextButton.icon(
+                          onPressed: _openGallery,
+                          icon: const Icon(Icons.open_in_new, color: Colors.green),
+                          label: const Text('Gallery', style: TextStyle(color: Colors.green, fontSize: 16)),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton.icon(
+                          onPressed: _restoreAsset,
+                          icon: const Icon(Icons.restore, color: Colors.blue),
+                          label: const Text('Restore', style: TextStyle(color: Colors.blue, fontSize: 16)),
+                        ),
+                        TextButton.icon(
+                          onPressed: _deleteAsset,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          label: const Text('Delete', style: TextStyle(color: Colors.red, fontSize: 16)),
+                        ),
+                      ],
+                    ),
             )
           ],
         ),

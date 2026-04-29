@@ -64,7 +64,8 @@ class _SwiperScreenState extends State<SwiperScreen> {
     );
 
     final Set<String> binIds = AppState().recycleBin.map((e) => e.id).toSet();
-    assets.removeWhere((asset) => binIds.contains(asset.id));
+    final Set<String> favIds = AppState().favorites.map((e) => e.id).toSet();
+    assets.removeWhere((asset) => binIds.contains(asset.id) || favIds.contains(asset.id));
 
     if (_sortMode == SortMode.random) {
       assets.shuffle(Random.secure());
@@ -138,6 +139,8 @@ class _SwiperScreenState extends State<SwiperScreen> {
       final asset = _assets[previousIndex];
       if (direction == CardSwiperDirection.left) {
         AppState().removeFromBin(asset);
+      } else if (direction == CardSwiperDirection.right) {
+        AppState().removeFromFavorites(asset);
       }
       setState(() {
         _currentIndex = previousIndex;
@@ -148,9 +151,7 @@ class _SwiperScreenState extends State<SwiperScreen> {
 
   Future<void> _setFavorite(AssetEntity asset) async {
     try {
-      if (asset.isFavorite == false) {
-         // OS API call if available
-      }
+      await AppState().addToFavorites(asset);
     } catch (e) {
       debugPrint("Could not set favorite: $e");
     }

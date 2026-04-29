@@ -9,6 +9,7 @@ class AppState extends ChangeNotifier {
   AppState._internal();
 
   final List<AssetEntity> recycleBin = [];
+  final List<AssetEntity> favorites = [];
   bool isHydrated = false;
 
   bool isDarkMode = true;
@@ -24,14 +25,8 @@ class AppState extends ChangeNotifier {
     enableDownSwipe = prefs.getBool('enableDownSwipe') ?? false;
 
     final List<String> savedIds = prefs.getStringList('recycle_bin_ids') ?? [];
-    
-    if (savedIds.isEmpty) {
-      isHydrated = true;
-      notifyListeners();
-      return;
-    }
+    final List<String> savedFavIds = prefs.getStringList('favorites_ids') ?? [];
 
-    // Hydration phase
     List<String> validIds = [];
     for (String id in savedIds) {
       try {
@@ -44,12 +39,28 @@ class AppState extends ChangeNotifier {
           }
         }
       } catch (e) {
-        // file no longer found, simply don't add to validIds
       }
     }
-
     if (validIds.length != savedIds.length) {
       await prefs.setStringList('recycle_bin_ids', validIds);
+    }
+
+    List<String> validFavIds = [];
+    for (String id in savedFavIds) {
+      try {
+        final AssetEntity? asset = await AssetEntity.fromId(id);
+        if (asset != null && asset.id != 'null' && asset.id.isNotEmpty) {
+          final file = await asset.file;
+          if (file != null && await file.exists()) {
+            favorites.add(asset);
+            validFavIds.add(id);
+          }
+        }
+      } catch (e) {
+      }
+    }
+    if (validFavIds.length != savedFavIds.length) {
+      await prefs.setStringList('favorites_ids', validFavIds);
     }
 
     isHydrated = true;
@@ -129,5 +140,32 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final ids = recycleBin.map((e) => e.id).toList();
     await prefs.setStringList('recycle_bin_ids', ids);
+  }
+
+  Future<void> addToFavorites(AssetEntity asset) async {
+    if (asset.id == 'null' || asset.id.isEmpty) return;
+    if (!favorites.any((e) => e.id == asset.id)) {
+      favorites.add(asset);
+      notifyListeners();
+      await _saveFavsToPrefs();
+    }
+  }
+
+  Future<void> removeFromFavorites(AssetEntity asset) async {
+    favorites.removeWhere((e) => e.id == asset.id);
+    notifyListeners();
+    await _saveFavsToPrefs();
+  }
+
+  Future<void> removeMultipleFromFavorites(Set<String> idsToRemove) async {
+    favorites.removeWhere((e) => idsToRemove.contains(e.id));
+    notifyListeners();
+    await _saveFavsToPrefs();
+  }
+
+  Future<void> _saveFavsToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = favorites.map((e) => e.id).toList();
+    await prefs.setStringList('favorites_ids', ids);
   }
 }

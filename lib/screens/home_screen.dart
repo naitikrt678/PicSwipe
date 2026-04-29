@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'swiper_screen.dart';
 import 'recycle_bin_screen.dart';
+import 'favorites_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -46,6 +47,15 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Albums'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite_border),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: () {
